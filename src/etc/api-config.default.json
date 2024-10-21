@@ -1,0 +1,64 @@
+{
+  // debug
+  "debug": false,
+  // timeout in seconds
+  "timeout": 5,
+
+  // configs
+  "configs": {
+    // shatfel@de1
+    "shatfelDe1": {
+      "appId": "11111111111111",
+      "apiKey": "2222222222222222222"
+      },
+
+    // shatfel@de2
+    "shatfelDe2": {
+      "appId": "33333333333333333",
+      "apiKey": "444444444444444444"
+      }
+    },
+
+  // api auth
+  "api": {
+    "root": "cloudbroker",
+    "request": "account/list"
+    },
+
+  // windows tools
+  "winTools": {
+    "default": "msys",
+
+    "msys": {
+      "path": "/mingw64/bin"
+      },
+
+    "cygwin": {
+      "path": "c:\\cygwin\\bin"
+      },
+
+    "win32": {
+      "path": "c:\\mingw\\bin"
+      }
+    },
+
+  // de platform
+  "dePlatform":{
+    // de1
+    "de1": {
+      // platform url
+      "host": "https://de1.domain.ru",
+      // sso url
+      "ssoHost": "https://sso-de1.domain.ru"
+      },
+
+    // de2
+    "de2": {
+      // platform url
+      "host": "https://de2.domain.ru",
+      // sso url
+      "ssoHost": "https://sso-de2.domain.ru"
+      }
+    }
+}
+

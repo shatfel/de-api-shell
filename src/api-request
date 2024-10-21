@@ -1,0 +1,239 @@
+#!/usr/bin/env bash
+
+### !!! IMPORTANT !!!
+### require jq and curl installed
+### for debian-based:
+###   apt install jq curl -y
+### for rpm-based:
+###   dnf install jq curl -y
+###   yum install jq curl -y
+
+### vars
+## config file path
+_configFile="${configFile:=`dirname ${0}`/etc/api-config.json}"
+## config name in config file
+_confName="${confName:=NULL}"
+## force debug
+_forceDebug="${forceDebug:="false"}"
+## jq output
+_prettyJson=${prettyJson:="false"}
+## data center name
+_dataCenter="${dataCenter:="de1"}"
+## error types
+declare -A _errors
+_errors["NORMAL"]=0
+_errors["FATAL"]=1
+_errors["SOFT"]=2
+## parsed config
+  declare -A _C
+
+
+
+### functions
+## pUsage()
+## print usage
+function pUsage {
+  local _tConfig="`dirname ${0}/api-config.json`"
+
+  cat <<EOF
+
+/usage/
+  [forceDebug="true|false" (default: "false")]
+  [configFile="path to config" (default: "${_tConfig}")]
+  <confName="config name from ${_tConfig}">
+  [api="api request" (default: "account/list")
+    [apiRoot="cloudbroker|cloudapi|system" (default: "cloudbroker")]
+    ]
+  [prettyJson="true|false" (default: "false")]
+  [dataCenter="m9|noginsk" (default: "m9")]
+  `basename ${0}`
+    [ !!! NOT CHECK !!!
+      -h|--help - this help
+      --getPlainJsonConfig - print clean JSON config
+    ]
+
+/i/ check ${_tConfig} for more information or https://gitlab.pds.sibir.rt.ru/degitalenergy/de-docs/-/tree/main/examples/shell ..
+EOF
+  }
+
+### pD()
+## print debug message
+function pD {
+  ## print if debug not false in config
+  if [[ -n ${_C["debug"]} && ${_C["debug"]} != "false" ]]; then
+    printf "/d/ ${1}\n"
+    fi
+}
+
+### checkConfigExist()
+## check config params
+function checkConfigExist {
+  [[ ! -f ${_configFile} || ${_confName} == "NULL" ]] && {
+    printf "/e/ ${_configFile} not found or ${_confName} not set ..\n"
+    pUsage
+    exit ${_errors["FATAL"]}
+    }
+  }
+
+### parseConfig()
+## parse config params
+## check config file for descriptions
+function parseConfig {
+  ## params to parse from config file
+  ## [_C param name]="config file json param"
+  declare -A _confParams=(
+    [debug]="debug"
+    [appId]="configs.${_confName}.appId"
+    [apiKey]="configs.${_confName}.apiKey"
+    [host]="dePlatform.${_dataCenter}.host"
+    [ssoHost]="dePlatform.${_dataCenter}.ssoHost"
+    [winToolsDefault]="winTools.default"
+    [winToolsPath]="winTools.${_C["winToolsDefault"]}.path"
+    [api]="api.request"
+    [apiRoot]="api.root"
+    [timeout]="timeout"
+    )
+  
+  ## set dataCenter
+  _C["dataCenter"]="${_dataCenter}"
+
+  ## fix debug param if forced debug
+  [[ ${_forceDebug} != "false" ]] && {
+    _C["debug"]="true"
+    }
+
+  ## parse config file and fill _C config
+  for _key in ${!_confParams[*]}; do
+    ## fix _C[winToolsDefault]
+    [[ ! -n ${_C["winToolsDefault"]} ]] && {
+      _C["winToolsDefault"]="`sed -E "s#^\s*//.*##" ${_configFile} | jq ".${_confParams["winToolsDefault"]}" | tr -d '"'`" || exit ${_errors["SOFT"]}
+      _confParams["winToolsPath"]="winTools.${_C["winToolsDefault"]}.path"
+      }
+
+    ## fix _C[api]
+    [[ -n ${api} ]] && \
+      _C["api"]="${api}"
+
+    ## fix _C[apiRoot]
+    [[ -n ${apiRoot} ]] && \
+      _C["apiRoot"]="${apiRoot}"
+
+    ## value from key
+    local _val="${_confParams[${_key}]}"
+    
+    ## if forceDebug set print key:value pairs
+    [[ ${_forceDebug} != "false" ]] && {
+      printf "/d/ _key: ${_key}; _val: ${_val} ..\n" 
+      }
+
+    ## if [ (_key is "debug" and _C[debug] not set ) or (_key not "debug")]
+    ## or ( _C[api] not set)
+    [[ 
+      ( ( ${_key} == "debug" && ! -n ${_C["debug"]} ) || ( ${_key} != "debug" ) ) \
+      || ( ! -n ${_C["api"]} ) \
+      || ( ! -n ${_C["apiRoot"]} )
+    ]] && {
+      _C["$_key"]="`sed -E "s#^\s*//.*##" ${_configFile} | jq ".${_val}" | tr -d '"'`" || exit ${_errors["SOFT"]}
+
+      ## debug
+      [[ ${_forceDebug} != "false" || -n ${_C["debug"]} ]] && {
+        pD "_C[${_key}] -> ${_val}"
+        }
+      }
+    done
+  }
+
+### osFix()
+## check os and fix paths
+function osFix {
+  pD "run on: ${OSTYPE} .."
+  ## Windows or MSYS
+  case "${OSTYPE}" in
+    "msys")
+      pD "fix PATH env .."
+      export PATH="${PATH}:/mingw64/bin:/mingw/bin"
+      ;;
+
+    ## linux
+    "linux-gnu")
+      pD "fix not needed .."
+      ;;
+
+    ## default run as in *nix system
+    *)
+      pD "os type unknown; run as linux-gnu .."
+      pD "fix not needed .."
+      ;;
+    esac
+  }
+
+### pDebugInfo()
+## print debug info
+function pDebugInfo {
+  [[ ${_C["debug"]} != "false" ]] && {
+    cat <<EOF
+/d/ run w/ params:
+  debug: ${_C["debug"]} 
+  config: ${_configFile}
+  confName: ${_confName}
+  appId: ${_C["appId"]}
+  apiKey: ${_C["apiKey"]}
+  host: ${_C["host"]}
+  ssoHost: ${_C["ssoHost"]}
+  api: ${_C["api"]}
+  apiRoot: ${_C["apiRoot"]}
+  winToolsDefault: ${_C["winToolsDefault"]}
+  winToolsPath: ${_C["winToolsPath"]}
+  dataCenter: "${_C["dataCenter"]}"
+EOF
+    }
+  }
+
+### getPlainJsonConfig()
+## print correct JSON config
+function getPlainJsonConfig {
+  sed -E "s#^\s*//.*##" ${_configFile} | jq "."
+}
+
+### apiRequest()
+## request json throw api
+function apiRequest {
+  ## get api token
+  _token="`curl -s -k -d "grant_type=client_credentials&client_id=${_C["appId"]}&client_secret=${_C["apiKey"]}&response_type=id_token" "${_C["ssoHost"]}/v1/oauth/access_token"`"
+
+  ## api request
+  _json="`curl -s -k -X POST -H "Authorization: bearer ${_token}" "${_C["host"]}/restmachine/${_C["apiRoot"]}/${_C["api"]}"`"
+
+  ## print response or pretty json
+  if [[ ${_prettyJson} != "false" ]]; then
+    printf "${_json}" | jq '.'
+  else
+    printf "${_json}\n"
+    fi
+  }
+
+
+
+
+### parseParams()
+## parse exec param
+function parseParams {
+  [[ ${1} == "--help" || "${1}" == "-h" ]] && {
+    pUsage
+    exit ${_errors["NORMAL"]}
+    } || \
+  [[ ${1} -eq "--getPlainJsonConfig" ]] && {
+    getPlainJsonConfig
+    exit ${_errors["NORMAL"]}
+    }
+  }
+
+
+
+### main
+##parseParams
+checkConfigExist
+osFix
+parseConfig
+pDebugInfo
+apiRequest

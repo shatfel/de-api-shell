@@ -1,0 +1,30 @@
+#!/usr/bin/env zsh
+
+### vars
+
+
+
+### func dlgInputBox(title, caption)
+dlgInputBox() {
+  _title="${1}"
+  _caption="${2}"
+
+  _r="`dialog --title "${_title}" \
+         --clear \
+         --beep \
+         --colors \
+         --inputbox "${_caption}" 0 0 \
+         --stdout`" \
+   || exit 1
+
+  return "${_r}"
+  }
+
+
+
+### func dlgMenu(title, items)
+dlgMenu() {
+  _title="${1}"
+  _items="${2}"
+
+  }

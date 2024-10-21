@@ -1,0 +1,53 @@
+#!/usr/bin/env zsh
+
+### vars
+## run type
+_runType="${runType:=COMMON}"
+## name
+_unitName="${unitName:=`basename ${0}`}"
+## message template
+_msgTmpl='{ "unitName": "%s", "type": "%s", "message": "%s", "date": "%s" }'
+
+
+
+### funcs
+##
+function pP() {
+  _msg="${1}"
+  _type="${2:=NONE}"
+  _date="`date +'%Y%m%d %H%M%S'`"
+
+  printf -v __msg "${_msgTmpl}" "${_unitName}" "${_type}" "${_msg}" "${_date}"
+
+  printf "${__msg}\n"
+
+  return 0
+  }
+
+##
+function pI() {
+  _msg="${1}"
+  _type="INFO"
+
+  pP "${_msg}" "${_type}"
+  }
+
+##
+function pE() {
+  _msg="${1}"
+  _type="ERROR"
+
+  pP "${_msg}" "${_type}"
+  }
+
+
+
+###
+[[ ${_runType} == "TEST" ]] && {
+  pI "Testing"
+  for _type in "INFO" "ERROR" ""; do
+    pP "test ${_type} message" "${_type}"
+    done
+  }
+
+return 0
